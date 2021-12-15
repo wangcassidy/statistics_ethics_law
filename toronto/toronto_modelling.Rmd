@@ -1,0 +1,374 @@
+---
+title: "Appendix 1: Toronto Data Models"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=F, warning=F, cache=T)
+```
+
+```{r message=F}
+library(sf)
+library(INLA)
+library(tidyverse)
+library(spdep)
+```
+
+```{r include=F}
+data_csv = read_csv("data/data_clean.csv")
+data = st_read("data/data.shp")
+names(data) = c(names(data_csv), "geometry")
+```
+
+```{r}
+# Filter out missing data
+data = data %>% drop_na()
+```
+
+```{r}
+# specify priors
+prior = list(
+  prec = list(
+    prior = "pc.prec",
+    param = c(0.5 / 0.31, 0.01)),
+  phi = list(
+    prior = "pc",
+    param = c(0.5, 0.5))
+  )
+```
+
+```{r message=F}
+# Compute adjacency matrix and graph
+nb = poly2nb(data)
+nb2INLA("map.adj", nb)
+g = inla.read.graph(filename = "map.adj")
+
+# Neighbourhood index 
+spatial = 1:nrow(data)
+```
+
+## Violent crime models
+
+The following models have violent crime as the response, and have the same socio-economic covariates, but with different race group covariates. 
+
+
+```{r cache=T}
+formula = violent_crime ~ perc_black + unemp_rate +
+  perc_children + perc_youth + perc_seniors +  
+  perc_low_income + perc_female + perc_postsecondary +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black", 
+                 "Unemployment rate",
+                 "Percent children", "Percent youth", "Percent seniors",
+                 "Percent low-income","Percent female",
+                 "Percent with \n postsecondary education",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for violent crime rate model"
+             )
+```
+
+
+```{r cache=T}
+formula = violent_crime ~ perc_not_visible_minority + unemp_rate +
+  perc_children + perc_youth + perc_seniors +  
+  perc_low_income + perc_female + perc_postsecondary +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent not a visible minority", 
+                 "Unemployment rate",
+                 "Percent children", "Percent youth", "Percent seniors",
+                 "Percent low-income","Percent female",
+                 "Percent with \n postsecondary education",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for violent crime rate model"
+             )
+```
+
+```{r cache=T}
+formula = violent_crime ~ perc_asian + unemp_rate +
+  perc_children + perc_youth + perc_seniors +  
+  perc_low_income + perc_female + perc_postsecondary +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Asian", 
+                 "Unemployment rate",
+                 "Percent children", "Percent youth", "Percent seniors",
+                 "Percent low-income","Percent female",
+                 "Percent with \n postsecondary education",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for violent crime rate model"
+             )
+```
+
+## Theft crime models
+
+The following models have theft crime as the response, and have the same socio-economic covariates, but with different race group covariates. 
+
+
+```{r cache=T}
+formula = theft ~ perc_black + unemp_rate +
+  perc_children + perc_youth + perc_seniors +  
+  perc_low_income + perc_female + perc_postsecondary +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black", 
+                 "Unemployment rate",
+                 "Percent children", "Percent youth", "Percent seniors",
+                 "Percent low-income","Percent female",
+                 "Percent with \n postsecondary education",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for theft crime rate model"
+             )
+```
+
+```{r cache=T}
+formula = theft ~ perc_not_visible_minority + unemp_rate +
+  perc_children + perc_youth + perc_seniors +  
+  perc_low_income + perc_female + perc_postsecondary +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent not visible minority", 
+                 "Unemployment rate",
+                 "Percent children", "Percent youth", "Percent seniors",
+                 "Percent low-income","Percent female",
+                 "Percent with \n postsecondary education",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for theft crime rate model"
+             )
+```
+
+```{r cache=T}
+formula = theft ~ perc_asian + unemp_rate +
+  perc_children + perc_youth + perc_seniors +  
+  perc_low_income + perc_female + perc_postsecondary +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Asian", 
+                 "Unemployment rate",
+                 "Percent children", "Percent youth", "Percent seniors",
+                 "Percent low-income","Percent female",
+                 "Percent with \n postsecondary education",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for theft crime rate model"
+             )
+```
+
+## Diversity index models
+
+The following models use diversity index as a covariate. 
+
+
+```{r}
+# Calculate diversity index
+races = data %>% dplyr::select(perc_black, perc_not_visible_minority,perc_Arab, perc_lat_american, perc_south_asian, perc_southeast_asian, perc_west_asian, perc_chinese,
+         perc_Filipino, , perc_Japanese, perc_Korean) %>% st_drop_geometry()
+races = races/100
+races$other = 1-rowSums(races)
+di = rowSums(races * (1-races))
+data$di = di*100
+```
+
+
+```{r cache=T}
+formula = violent_crime ~ di + unemp_rate + perc_children + perc_youth + perc_seniors + perc_low_income + perc_female + perc_postsecondary +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Diversity Index", 
+                 "Unemployment rate",
+                 "Percent children", "Percent youth", "Percent seniors",
+                 "Percent low-income","Percent female",
+                 "Percent with \n postsecondary education",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for violent crime rate model, with demographic and diversity index covariates"
+             )
+```
+
+```{r cache=T}
+formula = theft ~ di + unemp_rate + perc_children + perc_youth + perc_seniors +
+   perc_low_income + perc_female + perc_postsecondary +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Diversity Index", 
+                 "Unemployment rate",
+                 "Percent children", "Percent youth", "Percent seniors",
+                 "Percent low-income","Percent female",
+                 "Percent with \n postsecondary education",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for theft crime rate model, with demographic and diversity index covariates"
+             )
+```
+
+## No socioeconomic variables models
+
+The following models do not control for socioeconomic variables. 
+
+```{r cache=T}
+formula = violent_crime ~ perc_black +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for violent crime rate model, without controlling for socio-economic variables"
+             )
+```
+
+```{r cache=T}
+formula = theft ~ perc_black +
+  f(spatial, model = "bym2", graph = g, hyper = prior)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop,
+  control.predictor = list(compute = TRUE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="posterior means, medians and 95% CIs for theft crime rate model, without controlling for socio-economic variables"
+             )
+```

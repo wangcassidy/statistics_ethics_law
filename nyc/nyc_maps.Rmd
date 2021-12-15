@@ -1,0 +1,71 @@
+---
+output: pdf_document
+---
+
+```{r message=F}
+library(sf)
+library(INLA)
+library(tidyverse)
+library(spdep)
+```
+
+```{r}
+data_csv = read_csv("data/nyc.csv")
+data = st_read("data/nyc.shp")
+names(data) = c(names(data_csv), "geometry")
+```
+
+```{r}
+# transform data
+data$pop_white_pct_est = data$pop_white_pct_est * 100
+data$pop_black_pct_est = data$pop_black_pct_est * 100
+data$pop_hisp_pct_est = data$pop_hisp_pct_est * 100
+data$pop_asian_pct_est = data$pop_asian_pct_est * 100
+data$pop_ba_above_pct_est = data$pop_ba_above_pct_est * 100
+data$pop_inpov_pct_est = data$pop_inpov_pct_est * 100
+
+data$reported_crime_per_10k_people = data$n_crime / data$pop_total_est * 10000
+data$arrests_per_10k_people = data$n_arrest / data$pop_total_est * 10000
+data$violent_arrests_per_10k_people = data$n_violent_arrest / data$pop_total_est * 10000
+data$theft_arrests_per_10k_people = data$n_theft_arrest / data$pop_total_est * 10000
+
+data$arrests_per_reported_crime = data$n_arrest / data$n_crime
+data$violent_arrests_per_reported_crime = data$n_violent_arrest / data$n_violent_crime
+data$theft_arrests_per_reported_crime = data$n_theft_arrest / data$n_theft_crime
+
+data$pop_scaled = data$pop_total_est / 10000
+```
+
+```{r message=F}
+# plot maps
+plot(data[which(names(data)=="pop_white_pct_est")],
+     main="Percentage of White Residents by NTA")
+plot(data[which(names(data)=="pop_black_pct_est")],
+     main="Percentage of Black Residents by NTA")
+plot(data[which(names(data)=="pop_hisp_pct_est")],
+     main="Percentage of Hispanic Residents by NTA")
+plot(data[which(names(data)=="pop_asian_pct_est")],
+     main="Percentage of Asian Residents by NTA")
+
+plot(data[which(names(data)=="pop_total_est")],
+     main="Population by NTA")
+
+plot(data[which(names(data)=="arrests_per_10k_people")],
+     main="Number of arrests per 10,000 people by NTA")
+plot(data[which(names(data)=="violent_arrests_per_10k_people")],
+     main="Number of violent crime arrests per 10,000 people by NTA")
+plot(data[which(names(data)=="theft_arrests_per_10k_people")],
+     main="Number of theft crime arrests per 10,000 people by NTA")
+
+plot(data[which(names(data)=="arrests_per_reported_crime")],
+     main="Arrests per reported crime by NTA")
+plot(data[which(names(data)=="violent_arrests_per_reported_crime")],
+     main="Violent crime arrests per reported crime by NTA")
+plot(data[which(names(data)=="theft_arrests_per_reported_crime")],
+     main="Theft crime arrests per reported crime by NTA")
+
+plot(data[which(names(data)=="reported_crime_per_10k_people")],
+     main="Number of reported crimes per 10,000 people by NTA")
+```
+
+

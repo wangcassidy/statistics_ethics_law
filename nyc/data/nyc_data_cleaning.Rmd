@@ -1,0 +1,153 @@
+---
+title: "nyc"
+author: "Cassidy Wang"
+date: "12/12/2021"
+output: pdf_document
+---
+
+Original data from: 
+https://nycgeo.mattherman.info/index.html
+https://data.cityofnewyork.us/Public-Safety/NYPD-Arrest-Data-Year-to-Date-/uip8-fykc
+https://data.cityofnewyork.us/Public-Safety/NYPD-Complaint-Data-Historic/qgea-i56i 
+
+```{r}
+library(tidyverse)
+library(sf)
+library(nycgeo)
+```
+
+```{r}
+# Download data from links above and uncomment this code
+
+#crime = read_csv("NYPD_Complaint_Data_Historic.csv")
+#crime$year = str_sub(crime$CMPLNT_FR_DT, start= -4)
+#crime %>% filter(year == "2017") %>% write_csv("crime_2017.csv")
+
+#crime = read_csv("NYPD_Arrest_Data_Historic.csv")
+#crime$year = str_sub(crime$ARREST_DATE, start= -4)
+#crime %>% filter(year == "2017") %>% write_csv("arrests_2017.csv")
+
+#arrests = read_csv("arrests_2017.csv")
+#crime = read_csv("crime_2017.csv")
+```
+
+```{r}
+arrests
+crime
+```
+
+
+```{r}
+sum(is.na(arrests$PD_DESC))
+sum(is.na(arrests$OFNS_DESC))
+length(unique(arrests$PD_DESC))
+length(unique(arrests$OFNS_DESC))
+sum(is.na(crime$PD_DESC))
+sum(is.na(crime$OFNS_DESC))
+length(unique(crime$PD_DESC))
+unique(crime$OFNS_DESC)
+```
+
+```{r}
+# Define violent crimes and thefts
+arrests$violent = ifelse(arrests$OFNS_DESC %in% c(
+  "ASSAULT 3 & RELATED OFFENSES", "RAPE", "ARSON",
+  "FELONY ASSAULT", "MURDER & NON-NEGL. MANSLAUGHTER",
+  "KIDNAPPING & RELATED OFFENSES"
+),
+1, 0)
+
+arrests$theft = ifelse(arrests$OFNS_DESC %in% c(
+  "ROBBERY", "BURGLARY", "GRAND LARCENY", "OTHER OFFENSES RELATED TO THEFT", 
+  "PETIT LARCENY", "GRAND LARCENY OF MOTOR VEHICLE"
+),
+1, 0)
+
+crime$violent = ifelse(crime$OFNS_DESC %in% c(
+  "ASSAULT 3 & RELATED OFFENSES", "RAPE", "ARSON",
+  "FELONY ASSAULT", "MURDER & NON-NEGL. MANSLAUGHTER",
+  "KIDNAPPING & RELATED OFFENSES"
+),
+1, 0)
+
+crime$theft = ifelse(crime$OFNS_DESC %in% c(
+  "ROBBERY", "BURGLARY", "GRAND LARCENY", "OTHER OFFENSES RELATED TO THEFT", 
+  "PETIT LARCENY", "GRAND LARCENY OF MOTOR VEHICLE"
+),
+1, 0)
+```
+
+```{r}
+sum(arrests$violent)
+sum(arrests$theft)
+sum(crime$violent)
+sum(crime$theft)
+```
+
+```{r}
+head(arrests)
+head(crime)
+```
+
+```{r}
+# Create spatial objects
+arrests_spatial = st_as_sf(arrests, coords=c("Longitude", "Latitude"), crs="EPSG:4326")
+arrests_spatial = st_transform(arrests_spatial, "EPSG:2263")
+crime = crime %>% filter(!is.na(Longitude))
+crime_spatial = st_as_sf(crime, coords=c("Longitude", "Latitude"), crs="EPSG:4326")
+crime_spatial = st_transform(crime_spatial, "EPSG:2263")
+```
+
+```{r}
+# Load ACS and NTA data
+acs = nyc_boundaries(geography="nta", add_acs_data = TRUE) %>%
+  select(-state_fips,-county_fips,-county_name,-borough_name,-borough_id,-puma_id,
+         -puma_name)
+nta = acs %>% select(nta_id, nta_name)
+```
+
+```{r}
+# Map arrests/crimes to neighbourhood
+merged_arrests = st_join(nta, arrests_spatial, join=st_contains)
+merged_crime = st_join(nta, crime_spatial, join=st_contains)
+
+unmatched_key_a = setdiff(arrests_spatial$ARREST_KEY, merged_arrests$ARREST_KEY)
+unmatched_a = filter(arrests_spatial, ARREST_KEY %in% unmatched_key_a)
+matched_a = nyc_point_poly(unmatched_a, "nta") %>% filter(!is.na(nta_id))
+matched_merged_a = merge(nta, st_drop_geometry(matched_a), 
+                       by=c("nta_id", "nta_name"))[names(merged_arrests)]
+
+unmatched_key_c = setdiff(crime_spatial$CMPLNT_NUM, merged_crime$CMPLNT_NUM)
+unmatched_c = filter(crime_spatial, CMPLNT_NUM %in% unmatched_key_c)
+matched_c = nyc_point_poly(unmatched_c, "nta") %>% filter(!is.na(nta_id))
+matched_merged_c = merge(nta, st_drop_geometry(matched_c), 
+                       by=c("nta_id", "nta_name"))[names(merged_crime)]
+
+arrest_data = rbind(merged_arrests, matched_merged_a)
+crime_data = rbind(merged_crime, matched_merged_c)
+```
+
+
+```{r}
+# Summarize arrests/crimes by neighbourhood
+arrest_by_nta = arrest_data %>% 
+  group_by(nta_id, nta_name) %>%
+  summarise(n_arrest=n(), n_violent_arrest=sum(violent), n_theft_arrest=sum(theft))
+crime_by_nta = crime_data %>% 
+  group_by(nta_id, nta_name) %>%
+  summarise(n_crime=n(), n_violent_crime=sum(violent), n_theft_crime=sum(theft))
+
+df = merge(arrest_by_nta, st_drop_geometry(crime_by_nta), 
+           by=c("nta_id", "nta_name")) %>% 
+  merge(st_drop_geometry(acs)) %>%
+  select(nta_id, nta_name, contains("pct_est"), contains("arrest"), contains("crime"), pop_total_est)
+```
+
+
+```{r}
+# Write to files
+st_write(df, "nyc.shp")
+write_csv(st_drop_geometry(df), "nyc.csv")
+```
+
+

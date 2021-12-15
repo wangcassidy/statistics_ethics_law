@@ -1,0 +1,78 @@
+---
+output: pdf_document
+---
+
+
+```{r message=F, warning=F}
+library(sf)
+library(tidyverse)
+```
+
+```{r load_data, message=F, warning=F}
+# Load data
+crime = st_read("data/Neighbourhood_Crime_Rates_2020.shp")
+data_csv = read_csv("data/data_clean.csv")
+data = st_read("data/data.shp")
+names(data) = c(names(data_csv), "geometry")
+```
+
+```{r}
+plot(crime[which(names(crime)=="Assault__8")], 
+     main="Assault rate (per 100,000 people)")
+plot(crime[which(names(crime)=="AutoThef_9")], 
+     main="Auto theft rate (per 100,000 people)")
+plot(crime[which(names(crime)=="BreakAnd_9")], 
+     main="Break and enter rate (per 100,000 people)")
+plot(crime[which(names(crime)=="Robbery__7")], 
+     main="Robbery rate (per 100,000 people)")
+plot(crime[which(names(crime)=="TheftOve_9")], 
+     main="Theft over $5000 rate (per 100,000 people)")
+plot(crime[which(names(crime)=="Homicide_9")], 
+     main="Homicide rate (per 100,000 people)")
+plot(crime[which(names(crime)=="Shooting_8")], 
+     main="Shooting rate (per 100,000 people)")
+
+plot(data[which(names(data)=="pop_density")], 
+     main="Population density by neighbourhood")
+plot(data[which(names(data)=="unemp_rate")], 
+     main="Unemployment rate by neighbourhood")
+
+plot(data[which(names(data)=="perc_children")], 
+     main="Percentage of children by neighbourhood")
+plot(data[which(names(data)=="perc_youth")], 
+     main="Percentage of youth by neighbourhood")
+plot(data[which(names(data)=="perc_seniors")], 
+     main="Percentage of seniors by neighbourhood")
+plot(data[which(names(data)=="perc_immigrants")], 
+     main="Percentage of immigrants by neighbourhood")
+plot(data[which(names(data)=="perc_female")], 
+     main="Percentage of female residents by neighbourhood")
+
+plot(data[which(names(data)=="perc_black")], 
+     main="Percentage of black residents by neighbourhood")
+plot(data[which(names(data)=="perc_visible_minority")], 
+     main="Percentage of visible minorities by neighbourhood")
+plot(data[which(names(data)=="perc_not_visible_minority")], 
+     main="Percentage of non-visible minorities by neighbourhood")
+plot(data[which(names(data)=="perc_aboriginal")], 
+     main="Percentage of Aboriginal identity residents by neighbourhood")
+plot(data[which(names(data)=="perc_asian")], 
+     main="Percentage of Asian residents by neighbourhood")
+plot(data[which(names(data)=="perc_chinese")], 
+     main="Percentage of Chinese residents by neighbourhood")
+
+plot(data[which(names(data)=="pop")], 
+     main="Population by neighbourhood")
+```
+
+```{r}
+ggplot() + 
+  geom_sf(data = data, aes(fill = perc_postsecondary)) + 
+  labs(title="Percentage of residents with \n postsecondary education by neighbourhood",
+       fill="")
+
+ggplot() + 
+  geom_sf(data = data, aes(fill = perc_not_visible_minority)) + 
+  labs(title="Percentage of non-visible minority residents by neighbourhood",
+       fill="")
+```

@@ -1,0 +1,759 @@
+---
+title: "Appendix 2: NYC Data Models"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=F, warning=F, cache=T)
+```
+
+```{r message=F}
+library(sf)
+library(INLA)
+library(tidyverse)
+library(spdep)
+```
+
+```{r include=F}
+data_csv = read_csv("data/nyc.csv")
+data = st_read("data/nyc.shp")
+names(data) = c(names(data_csv), "geometry")
+```
+
+```{r}
+# transform data
+data$pop_white_pct_est = data$pop_white_pct_est * 100
+data$pop_black_pct_est = data$pop_black_pct_est * 100
+data$pop_hisp_pct_est = data$pop_hisp_pct_est * 100
+data$pop_asian_pct_est = data$pop_asian_pct_est * 100
+data$pop_ba_above_pct_est = data$pop_ba_above_pct_est * 100
+data$pop_inpov_pct_est = data$pop_inpov_pct_est * 100
+```
+
+```{r}
+# Filter out missing data
+data = data %>% drop_na()
+```
+
+```{r}
+# specify priors
+hyperpriors = list(
+  prec = list(
+    prior = "pc.prec",
+    param = c(0.5 / 0.31, 0.01)),
+  phi = list(
+    prior = "pc",
+    param = c(0.5, 0.5))
+  )
+```
+
+```{r message=F}
+# Compute adjacency matrix and graph
+nb = poly2nb(data)
+nb2INLA("map.adj", nb)
+g = inla.read.graph(filename = "map.adj")
+
+# Neighbourhood index 
+spatial = 1:nrow(data)
+```
+
+## Violent crime models
+
+The following models have reported violent crime as the response, and have the same socio-economic covariates, but with different race group covariates. 
+
+```{r cache=T}
+formula = n_violent_crime ~ pop_white_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = as.data.frame(data), 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent White", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=3,
+             caption="Posterior means, medians and 95% credible intervals for reported violent crime rate model."
+             )
+```
+
+
+```{r cache=T}
+formula = n_violent_crime ~ pop_black_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported violent crime rate model."
+             )
+```
+
+
+```{r cache=T}
+formula = n_violent_crime ~ pop_hisp_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Hispanic", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported violent crime rate model."
+             )
+```
+
+
+```{r cache=T}
+formula = n_violent_crime ~ pop_asian_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Asian", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported violent crime rate model."
+             )
+```
+
+
+## Theft crime models
+
+The following models have reported theft crime as the response, and have the same socio-economic covariates, but with different race group covariates. 
+
+
+```{r cache=T}
+formula = n_theft_crime ~ pop_white_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = as.data.frame(data), 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent White", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported theft crime rate model."
+             )
+```
+
+
+
+```{r cache=T}
+formula = n_theft_crime ~ pop_black_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported theft crime rate model."
+             )
+```
+
+
+```{r cache=T}
+formula = n_theft_crime ~ pop_hisp_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Hispanic", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported theft crime rate model."
+             )
+```
+
+
+```{r cache=T}
+formula = n_theft_crime ~ pop_asian_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Asian", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported theft crime rate model."
+             )
+```
+
+
+## Violent arrest models
+
+The following models have violent-crime arrests as the response, and have the same socio-economic covariates, but with different race group covariates. 
+
+
+```{r cache=T}
+formula = n_violent_arrest ~ pop_white_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = as.data.frame(data), 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent White", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for violent arrest rate model."
+             )
+```
+
+
+
+```{r cache=T}
+formula = n_violent_arrest ~ pop_black_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for violent arrest rate model."
+             )
+```
+
+
+```{r cache=T}
+formula = n_violent_arrest ~ pop_hisp_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Hispanic", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for violent arrest rate model."
+             )
+```
+
+
+```{r cache=T}
+formula = n_violent_arrest ~ pop_asian_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Asian", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for violent arrest rate model."
+             )
+```
+
+
+
+## Theft arrest 
+
+The following models have theft arrests as the response, and have the same socio-economic covariates, but with different race group covariates. 
+
+
+```{r cache=T}
+formula = n_theft_arrest ~ pop_white_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = as.data.frame(data), 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent White", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for theft arrest rate model."
+             )
+```
+
+
+
+```{r cache=T}
+formula = n_theft_arrest ~ pop_black_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for theft arrest rate model."
+             )
+```
+
+
+```{r cache=T}
+formula = n_theft_arrest ~ pop_hisp_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Hispanic", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for theft arrest rate model."
+             )
+```
+
+
+```{r cache=T}
+formula = n_theft_arrest ~ pop_asian_pct_est+pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Asian", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for theft arrest rate model."
+             )
+```
+
+
+
+## Diversity Index Models
+
+The following models use diversity index as a covariate.
+
+
+```{r}
+# Calculate diversity index
+races = data %>% dplyr::select(pop_white_pct_est,pop_black_pct_est,pop_hisp_pct_est,pop_asian_pct_est) %>% st_drop_geometry()
+races = races/100
+races$other = 1-rowSums(races)
+di = rowSums(races * (1-races))
+data$di = di*100
+```
+
+```{r cache=T}
+formula = n_violent_arrest ~ di + pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Diversity Index", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for violent arrest rate model, with demographics and diversity index covariates."
+             )
+```
+
+
+
+```{r cache=T}
+formula = n_theft_arrest ~ di + pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Diversity Index", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for theft arrest rate model, with demographics and diversity index covariates."
+             )
+```
+
+```{r cache=T}
+formula = n_violent_crime ~ di + pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Diversity Index", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported violent crime rate model, with demographics and diversity index covariates."
+             )
+```
+
+
+
+```{r cache=T}
+formula = n_theft_crime ~ di + pop_ba_above_pct_est+pop_inpov_pct_est+
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Diversity Index", 
+                 "Percent 25 years or older with \n at least a Bachelor's degree",
+                 "Percent with income below \n poverty line",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported theft crime rate model, with demographics and diversity index covariates."
+             )
+```
+
+
+
+
+## No socio-economic variables model
+
+The following model does not control for socio-economic variables. 
+
+```{r cache=T}
+formula = n_violent_arrest ~ pop_black_pct_est +
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for violent arrest rate model, without controlling for socio-economic variables"
+             )
+```
+
+```{r cache=T}
+formula = n_violent_crime ~ pop_black_pct_est +
+  f(spatial, model = "bym2", graph = g, hyper = hyperpriors)
+
+res <- inla(formula,
+  family = "poisson", data = data, 
+  E=pop_total_est,
+  control.predictor = list(compute = TRUE),
+  control.fixed = list(mean=0, mean.intercept=0, prec = 100^(-1), prec.intercept = 100^(-1)),
+  control.inla=list(strategy="laplace", fast=FALSE)
+)
+```
+
+```{r}
+s = summary(res)
+tb = rbind(s$fixed[,c(1, 4, 3, 5)], s$hyperpar[,c(1, 4, 3, 5)])
+row.names(tb) = c("Intercept", "Percent Black",
+                 "Precision",
+                 "Phi")
+knitr::kable(tb, 
+             col.names=c("Mean", "Median", "95% CI Lower Bound", 
+                         "95% CI Upper Bound"),
+             digits=4,
+             caption="Posterior means, medians and 95% credible intervals for reported violent crime rate model, without controlling for socio-economic variables"
+             )
+```
+
